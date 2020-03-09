@@ -6,7 +6,7 @@ import math
 import random
 import pandas as pd
 from tqdm import trange
-from package.definition import logger, PAD_TOKEN
+from package.definition import logger
 from package.utils import save_pickle
 
 
@@ -15,7 +15,7 @@ class MultiLoader():
     Multi Data Loader using Threads.
 
     Args:
-        dataset (package.dataset.BaseDataset): object of BaseDataset
+        dataset_list (list): list of BaseDataset
         queue (Queue.queue): queue for threading
         batch_size (int): size of batch
         worker_num (int): the number of cpu cores used
@@ -54,7 +54,7 @@ class BaseDataLoader(threading.Thread):
         self.collate_fn = _collate_fn
         self.dataset = dataset
         self.queue = queue
-        self.index = 0
+        self.idx = 0
         self.batch_size = batch_size
         self.dataset_count = dataset.count()
         self.thread_id = thread_id
@@ -74,12 +74,12 @@ class BaseDataLoader(threading.Thread):
         while True:
             items = list()
             for _ in range(self.batch_size):
-                if self.index >= self.dataset_count:
+                if self.idx >= self.dataset_count:
                     break
-                feat, label = self.dataset.get_item(self.index)
+                feat, label = self.dataset.get_item(self.idx)
                 if feat is not None:
                     items.append((feat, label))
-                self.index += 1
+                self.idx += 1
 
             if len(items) == 0:
                 batch = self.create_empty_batch()
@@ -115,6 +115,7 @@ def _collate_fn(batch):
     seqs = torch.zeros(batch_size, max_seq_size, feat_size)
 
     targets = torch.zeros(batch_size, max_target_size).to(torch.long)
+    from package.definition import PAD_TOKEN
     targets.fill_(PAD_TOKEN)
 
     for x in range(batch_size):
@@ -153,7 +154,8 @@ def load_data_list(data_list_path, dataset_path):
     Provides set of audio path & label path
 
     Args:
-        data_list_path (list): csv file with training or test data list
+        data_list_path (str): csv file with training or test data list path.
+        dataset_path (str): dataset path.
 
     Returns: audio_paths, label_paths
         - **audio_paths** (list): set of audio path
@@ -172,6 +174,7 @@ def load_label(label_path, encoding='utf-8'):
 
     Args:
         label_path (list): csv file with character labels
+        encoding (str): encoding method
 
     Returns: char2id, id2char
         - **char2id** (dict): char2id[ch] = id
@@ -196,6 +199,7 @@ def load_pickle(filepath, message=""):
 
     Args:
         filepath (str): Path to pickle file to load
+        message (str): message to print
 
     Returns: load_result
         -**load_result** : load result of pickle
