@@ -23,8 +23,8 @@ from package.utils import get_distance
 
 def test(model, queue, device):
     """ Test for Model Performance """
-    logger.info('evaluate() start')
-    total_distance = 0
+    logger.info('test() start')
+    total_dist = 0
     total_length = 0
     total_sent_num = 0
 
@@ -47,12 +47,12 @@ def test(model, queue, device):
                 teacher_forcing_ratio = 0.0,
                 use_beam_search = True
             )
-            distance, length = get_distance(target, y_hat, id2char, EOS_TOKEN)
-            total_distance += distance
+            dist, length = get_distance(target, y_hat, id2char, EOS_TOKEN)
+            total_dist += dist
             total_length += length
             total_sent_num += target.size(0)
 
-    CER = total_distance / total_length
+    CER = total_dist / total_length
     logger.info('test() completed')
     return CER
 
@@ -67,8 +67,7 @@ if __name__ == '__main__':
     hparams.logger_hparams()
     cuda = hparams.use_cuda and torch.cuda.is_available()
     device = torch.device('cuda' if cuda else 'cpu')
-    model = torch.load("model_path")
-    model.set_beam_size(k = 8)
+    model = torch.load("model.pt", map_location=torch.device('cpu'))
 
     audio_paths, label_paths = load_data_list(data_list_path=TEST_LIST_PATH, dataset_path=DATASET_PATH)
 
@@ -76,8 +75,8 @@ if __name__ == '__main__':
     logger.info('start')
 
     test_dataset = BaseDataset(
-        audio_paths = audio_paths[:],
-        label_paths = label_paths[:],
+        audio_paths = audio_paths,
+        label_paths = label_paths,
         sos_id = SOS_TOKEN,
         eos_id = EOS_TOKEN,
         target_dict = target_dict,

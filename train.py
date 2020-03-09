@@ -38,9 +38,9 @@ import random
 import torch
 import time
 import os
-from model.speller import Speller
-from model.listener import Listener
-from model.listenAttendSpell import ListenAttendSpell
+from models.speller import Speller
+from models.listener import Listener
+from models.listenAttendSpell import ListenAttendSpell
 from package.dataset import split_dataset
 from package.definition import *
 from package.evaluator import evaluate
@@ -75,10 +75,11 @@ if __name__ == '__main__':
         feat_size = 128,
         hidden_size = hparams.hidden_size,
         dropout_p = hparams.dropout,
-        layer_size = hparams.listener_layer_size,
+        n_layers = hparams.listener_layer_size,
         bidirectional = hparams.use_bidirectional,
         rnn_cell = 'gru',
-        use_pyramidal = hparams.use_pyramidal
+        use_pyramidal = hparams.use_pyramidal,
+        device=device
     )
     speller = Speller(
         vocab_size = len(char2id),
@@ -87,7 +88,7 @@ if __name__ == '__main__':
         hidden_size = hparams.hidden_size << (1 if hparams.use_bidirectional else 0),
         sos_id = SOS_TOKEN,
         eos_id = EOS_TOKEN,
-        layer_size = hparams.speller_layer_size,
+        n_layers = hparams.speller_layer_size,
         rnn_cell = 'gru',
         dropout_p = hparams.dropout,
         use_attention = hparams.use_attention,
@@ -103,7 +104,7 @@ if __name__ == '__main__':
     else:
         criterion = nn.CrossEntropyLoss(reduction='sum', ignore_index=PAD_TOKEN).to(device)
 
-    audio_paths, label_paths = load_data_list(data_list_path=SAMPLE_LIST_PATH, dataset_path=SAMPLE_DATASET_PATH)
+    audio_paths, label_paths = load_data_list(data_list_path=TRAIN_LIST_PATH, dataset_path=DATASET_PATH)
 
     if hparams.use_pickle:
         target_dict = load_pickle(TARGET_DICT_PATH, "load all target_dict using pickle complete !!")
