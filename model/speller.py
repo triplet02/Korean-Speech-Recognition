@@ -2,8 +2,7 @@ import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from model.beam import Beam
+from models.beam import Beam
 from .attention import Attention
 
 if torch.cuda.is_available():
@@ -45,18 +44,18 @@ class Speller(nn.Module):
 
     Examples::
 
-        >>> speller = Speller(vocab_size, max_len, hidden_size, sos_id, eos_id, layer_size)
+        >>> speller = Speller(vocab_size, max_len, hidden_size, sos_id, eos_id, n_layers)
         >>> y_hats, logits = speller(inputs, listener_outputs, teacher_forcing_ratio=0.90)
     """
 
     def __init__(self, vocab_size, max_len, hidden_size,
-                 sos_id, eos_id, layer_size=1, rnn_cell='gru',
+                 sos_id, eos_id, n_layers=1, rnn_cell='gru',
                  dropout_p=0, use_attention=True, device=None, k=8):
         super(Speller, self).__init__()
         assert rnn_cell.lower() == 'lstm' or rnn_cell.lower() == 'gru' or rnn_cell.lower() == 'rnn'
         self.rnn_cell = nn.LSTM if rnn_cell.lower() == 'lstm' else nn.GRU if rnn_cell.lower() == 'gru' else nn.RNN
         self.device = device
-        self.rnn = self.rnn_cell(hidden_size , hidden_size, layer_size, batch_first=True, dropout=dropout_p).to(self.device)
+        self.rnn = self.rnn_cell(hidden_size , hidden_size, n_layers, batch_first=True, dropout=dropout_p).to(self.device)
         self.vocab_size = vocab_size
         self.max_len = max_len
         self.use_attention = use_attention
@@ -64,7 +63,7 @@ class Speller(nn.Module):
         self.sos_id = sos_id
         self.hidden_size = hidden_size
         self.embedding = nn.Embedding(self.vocab_size, self.hidden_size)
-        self.layer_size = layer_size
+        self.n_layers = n_layers
         self.input_dropout = nn.Dropout(p=dropout_p)
         self.k = k
         if use_attention:
@@ -95,7 +94,7 @@ class Speller(nn.Module):
         decode_results = []
         batch_size = inputs.size(0)
         max_len = inputs.size(1) - 1  # minus the start of sequence symbol
-        speller_hidden = torch.FloatTensor(self.layer_size, batch_size, self.hidden_size).uniform_(-0.1, 0.1).to(self.device)
+        speller_hidden = torch.FloatTensor(self.n_layers, batch_size, self.hidden_size).uniform_(-0.1, 0.1).to(self.device)
         use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
 
         if use_beam_search:
@@ -107,7 +106,8 @@ class Speller(nn.Module):
                 decoder = self,
                 batch_size = batch_size,
                 max_len = max_len,
-                function = function
+                function = function,
+                device = self.device
             )
             y_hats = beam.search(inputs, listener_outputs)
         else:
@@ -116,7 +116,7 @@ class Speller(nn.Module):
                 inputs = inputs[:, :-1]
                 predicted_softmax = self._forward_step(
                     input = inputs,
-                    hidden = speller_hidden,
+                    speller_hidden = speller_hidden,
                     listener_outputs = listener_outputs,
                     function = function
                 )
@@ -128,7 +128,7 @@ class Speller(nn.Module):
                 for di in range(max_len):
                     predicted_softmax = self._forward_step(
                         input = input,
-                        hidden = speller_hidden,
+                        speller_hidden = speller_hidden,
                         listener_outputs = listener_outputs,
                         function = function
                     )
